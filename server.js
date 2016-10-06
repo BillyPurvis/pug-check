@@ -25,7 +25,7 @@ app.get('/:region/:server/:characterName', (req, res) => {
   const blizzRequestUrl = `https://${region}.api.battle.net/wow/character/${server}/${cleanCharacterName}?fields=progression,items&locale=en_US&apikey=${blizzKey}`;
   const wclRequestUrl = `https://www.warcraftlogs.com:443/v1/rankings/character/${cleanCharacterName}/${server}/${region}?api_key=${wclKey}`;
 
-	Promise.all([getRequest(blizzRequestUrl, req, res), getRequest(wclRequestUrl, req, res)]).then(sortParsedData).then(function(sortData) {
+	Promise.all([getRequest(blizzRequestUrl, req, res, "blizz"), getRequest(wclRequestUrl, req, res, "wcl")]).then(sortParsedData).then(function(sortData) {
     res.render('character-info', {info: sortData});
   }).catch((err) => {
     console.log(err);
@@ -37,7 +37,7 @@ app.use(function(req, res, next) {
   res.status(404).send('Sorry cant find that!');
 });
 
-function getRequest(requestUrl, originReq, originRes) {
+function getRequest(requestUrl, originReq, originRes, requestLocation) {
   return new Promise((resolve, reject) => {
     https.get(requestUrl, (res) => {
       res.setEncoding('utf8');
@@ -66,7 +66,11 @@ function getRequest(requestUrl, originReq, originRes) {
         if (res.statusCode !== 404 || 504){
           resolve(parsed);
         } else {
-          reject()
+          if(requestLocation == "wcl") {
+            resolve();
+          } else {
+            reject();
+          }
         }
       });
 
@@ -133,7 +137,9 @@ function sortParsedData(data) {
   // janky loop to add warcraftLogs info to pertaining bosses
   for(var i = 0; i < sortData.progress[0].bosses.length; i++) {
     var currentBoss = sortData.progress[0].bosses[i];
-    var logData = data[1];
+    var logData;
+    
+    logData = data[1];
     var difficulty = 2;
     currentBoss.highestDifficulty = "Looking For Raid";
 
